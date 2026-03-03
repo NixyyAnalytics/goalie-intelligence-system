@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Goalie Intelligence System v2</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@300;400;600;700;900&family=Barlow:ital,wght@0,300;0,400;0,500;0,600;1,300&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#060A12; --surface:#0A1220; --surface2:#0D1828; --surface3:#111F33;
+  --border:#1A3050; --border2:#243F60;
+  --text:#C5D5E8; --text-dim:#566F8A; --text-bright:#EDF2F8;
+  --cyan:#00C8F0; --cyan-dim:#00C8F018; --cyan-med:#00C8F033;
+  --green:#52E8A0; --green-dim:#52E8A015;
+  --gold:#F0C040; --gold-dim:#F0C04015;
+  --red:#F05060; --red-dim:#F0506015;
+  --orange:#F08040; --purple:#9B6BF0;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'Barlow',sans-serif;font-size:13px;min-height:100vh;overflow-x:hidden;}
+body::before{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");pointer-events:none;z-index:999;opacity:0.5;}
+
+/* HEADER */
+header{background:linear-gradient(90deg,#070E1C,#0A1628 60%,#06101E);border-bottom:1px solid var(--border);padding:0 32px;height:62px;display:flex;align-items:center;position:relative;overflow:hidden;}
+header::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;background:linear-gradient(90deg,var(--cyan),transparent 60%);}
+.header-icon{font-size:28px;margin-right:14px;filter:drop-shadow(0 0 10px #00C8F066);animation:pulse-icon 3s ease-in-out infinite;}
+@keyframes pulse-icon{0%,100%{filter:drop-shadow(0 0 8px #00C8F055);}50%{filter:drop-shadow(0 0 18px #00C8F099);}}
+.header-title h1{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:22px;letter-spacing:4px;text-transform:uppercase;color:#fff;line-height:1;}
+.header-title .sub{font-size:9px;letter-spacing:3.5px;color:var(--cyan);text-transform:uppercase;margin-top:3px;opacity:.8;}
+.header-badge{margin-left:auto;display:flex;gap:8px;align-items:center;}
+.hbadge{background:var(--cyan-dim);border:1px solid var(--cyan-med);color:var(--cyan);font-family:'Barlow Condensed',sans-serif;font-size:10px;letter-spacing:2px;text-transform:uppercase;padding:4px 10px;border-radius:2px;}
+
+/* LAYOUT */
+.layout{display:flex;height:calc(100vh - 62px);overflow:hidden;}
+
+/* SIDEBAR */
+.sidebar{width:200px;min-width:200px;background:var(--surface);border-right:1px solid var(--border);padding:16px 14px;overflow-y:auto;display:flex;flex-direction:column;gap:4px;}
+.sidebar-section{font-family:'Barlow Condensed',sans-serif;font-size:9px;letter-spacing:3px;color:var(--cyan);text-transform:uppercase;padding:14px 0 6px;border-bottom:1px solid var(--border);margin-bottom:4px;}
+.sidebar-section:first-child{padding-top:0;}
+.nav-item{padding:8px 10px;border-radius:4px;cursor:pointer;font-size:12px;font-weight:500;letter-spacing:.5px;color:var(--text-dim);transition:all .15s;display:flex;align-items:center;gap:8px;border:1px solid transparent;}
+.nav-item:hover{background:var(--surface2);color:var(--text);}
+.nav-item.active{background:linear-gradient(90deg,#00C8F012,transparent);border-color:#00C8F025;color:var(--cyan);}
+.nav-icon{font-size:14px;width:18px;text-align:center;}
+.filter-label{font-size:9px;letter-spacing:2px;color:var(--text-dim);text-transform:uppercase;margin:10px 0 4px;}
+select{width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:6px 8px;border-radius:4px;font-family:'Barlow',sans-serif;font-size:11px;appearance:none;cursor:pointer;outline:none;}
+select:focus{border-color:var(--cyan);}
+
+/* MAIN */
+.main{flex:1;overflow-y:auto;padding:20px 24px;display:flex;flex-direction:column;gap:16px;}
+
+/* KPIs */
+.kpi-row{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;animation:fadeUp .5s ease both;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px);}to{opacity:1;transform:translateY(0);}}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:14px 16px;position:relative;overflow:hidden;transition:border-color .2s,transform .2s;}
+.kpi:hover{border-color:var(--border2);transform:translateY(-1px);}
+.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;}
+.kpi:nth-child(1)::before{background:linear-gradient(90deg,var(--cyan),transparent);}
+.kpi:nth-child(2)::before{background:linear-gradient(90deg,var(--green),transparent);}
+.kpi:nth-child(3)::before{background:linear-gradient(90deg,var(--gold),transparent);}
+.kpi:nth-child(4)::before{background:linear-gradient(90deg,var(--red),transparent);}
+.kpi:nth-child(5)::before{background:linear-gradient(90deg,var(--purple),transparent);}
+.kpi-label{font-size:8.5px;letter-spacing:2.5px;color:var(--text-dim);text-transform:uppercase;margin-bottom:7px;}
+.kpi-val{font-family:'Barlow Condensed',sans-serif;font-size:30px;font-weight:700;line-height:1;}
+.kpi-sub{font-size:10px;color:var(--text-dim);margin-top:4px;}
+
+/* TABS */
+.tab-panel{display:none;}
+.tab-panel.active{display:block;animation:fadeUp .3s ease both;}
+
+/* CARDS */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:16px;margin-bottom:14px;}
+.card-title{font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:600;letter-spacing:2.5px;color:var(--text-bright);text-transform:uppercase;padding-bottom:10px;border-bottom:1px solid var(--border);margin-bottom:14px;display:flex;align-items:center;gap:8px;}
+.dot{width:5px;height:5px;border-radius:50%;background:var(--cyan);box-shadow:0 0 6px var(--cyan);}
+.dot-g{background:var(--green);box-shadow:0 0 6px var(--green);}
+.dot-gold{background:var(--gold);box-shadow:0 0 6px var(--gold);}
+.dot-p{background:var(--purple);box-shadow:0 0 6px var(--purple);}
+
+/* GRIDS */
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
+.col-span-2{grid-column:1/3;}
+
+/* TABLE */
+.table-wrap{overflow-x:auto;max-height:520px;overflow-y:auto;}
+.scout-table{width:100%;border-collapse:collapse;font-size:12px;}
+.scout-table thead th{background:var(--surface2);color:var(--cyan);font-family:'Barlow Condensed',sans-serif;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;padding:8px 10px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap;position:sticky;top:0;}
+.scout-table tbody tr{border-bottom:1px solid #0F1D2E;transition:background .1s;}
+.scout-table tbody tr:hover{background:var(--surface2);}
+.scout-table tbody td{padding:7px 10px;white-space:nowrap;color:var(--text);}
+.rank-num{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:15px;color:var(--text-dim);}
+.rank-num.top{color:var(--cyan);}
+.tier-badge{display:inline-block;padding:2px 8px;border-radius:2px;font-size:9px;letter-spacing:1.5px;font-weight:600;text-transform:uppercase;}
+.tier-Elite{background:var(--cyan-dim);color:var(--cyan);border:1px solid #00C8F033;}
+.tier-Strong{background:var(--green-dim);color:var(--green);border:1px solid #52E8A033;}
+.tier-Average{background:var(--gold-dim);color:var(--gold);border:1px solid #F0C04033;}
+.tier-Weak{background:var(--red-dim);color:var(--red);border:1px solid #F0506033;}
+.trend-up{color:var(--green);}
+.trend-flat{color:var(--gold);}
+.trend-down{color:var(--red);}
+.flag-yes{color:var(--red);font-weight:700;font-size:11px;}
+.flag-no{color:#1E3A5F;font-size:11px;}
+.goalie-name{font-weight:600;color:var(--text-bright);}
+.rank-bar-wrap{display:flex;align-items:center;gap:4px;}
+.rank-bar{height:10px;border-radius:1px;background:var(--cyan);opacity:.7;min-width:2px;}
+.volatility-dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:4px;vertical-align:middle;}
+.vol-Low{background:var(--green);} .vol-Medium{background:var(--gold);} .vol-High{background:var(--red);}
+.outlook-reg{color:var(--red);font-size:10px;}
+.outlook-cool{color:var(--orange);font-size:10px;}
+.outlook-stab{color:var(--text-dim);font-size:10px;}
+.outlook-reb{color:var(--gold);font-size:10px;}
+
+/* PROJ BARS */
+.bar-wrap{overflow-y:auto;max-height:440px;}
+.bar-row{display:flex;align-items:center;gap:10px;padding:5px 0;border-bottom:1px solid #0F1D2E;transition:background .1s;}
+.bar-row:hover{background:var(--surface2);padding-left:4px;}
+.bar-goalie{width:160px;min-width:160px;font-size:12px;font-weight:500;color:var(--text-bright);overflow:hidden;text-overflow:ellipsis;}
+.bar-track{flex:1;height:18px;background:#0D1828;border-radius:2px;position:relative;overflow:visible;}
+.bar-fill{height:100%;border-radius:2px;position:absolute;left:50%;}
+.bar-fill.pos{background:linear-gradient(90deg,#00C8F0,#00C8F088);}
+.bar-fill.neg{background:linear-gradient(90deg,#F0506088,#F05060);transform:translateX(-100%);}
+.bar-zero{position:absolute;left:50%;top:-2px;bottom:-2px;width:1px;background:#FFFFFF33;}
+.bar-band{position:absolute;height:6px;top:50%;transform:translateY(-50%);background:#FFFFFF18;border-radius:1px;}
+.bar-val{width:50px;text-align:right;font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:600;}
+.dir-badge{width:80px;min-width:80px;font-size:9px;letter-spacing:1px;text-align:center;padding:2px 6px;border-radius:2px;font-weight:600;}
+.dir-su{background:#52E8A022;color:var(--green);border:1px solid #52E8A033;}
+.dir-u{background:#00C8F015;color:var(--cyan);border:1px solid #00C8F030;}
+.dir-f{background:var(--gold-dim);color:var(--gold);border:1px solid #F0C04033;}
+.dir-d{background:#F0804018;color:var(--orange);border:1px solid #F0804033;}
+.dir-sd{background:var(--red-dim);color:var(--red);border:1px solid #F0506033;}
+
+/* DRIVER BARS */
+.driver-row{display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid #0D1826;}
+.driver-name{width:150px;min-width:150px;font-size:11px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.driver-track{flex:1;height:14px;background:#0D1828;border-radius:2px;position:relative;}
+.driver-fill{height:100%;border-radius:2px;position:absolute;left:50%;}
+.driver-fill.pos{background:#00C8F0;}
+.driver-fill.neg{background:#F05060;transform:translateX(-100%);}
+.driver-zero{position:absolute;left:50%;top:-2px;bottom:-2px;width:1px;background:#FFFFFF22;}
+.driver-val{width:45px;text-align:right;font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:600;}
+
+/* ── SHOT DETAIL TAB ── */
+.goalie-selector{display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap;}
+.goalie-selector label{font-size:9px;letter-spacing:2px;color:var(--text-dim);text-transform:uppercase;}
+.goalie-selector select{width:220px;}
+.compare-toggle{display:flex;align-items:center;gap:8px;margin-left:16px;}
+.compare-toggle label{font-size:10px;color:var(--text-dim);}
+
+/* Shot heatmap grid */
+.heatmap-section{margin-bottom:20px;}
+.heatmap-title{font-family:'Barlow Condensed',sans-serif;font-size:10px;letter-spacing:2px;color:var(--text-dim);text-transform:uppercase;margin-bottom:8px;}
+.heatmap-grid{display:grid;gap:3px;}
+.heatmap-grid.dist{grid-template-columns:repeat(5,1fr);}
+.heatmap-grid.angle{grid-template-columns:repeat(5,1fr);}
+.heatmap-grid.side{grid-template-columns:repeat(3,1fr);}
+.heatmap-grid.period{grid-template-columns:repeat(4,1fr);}
+.heatmap-grid.gamestate{grid-template-columns:repeat(3,1fr);}
+.heatmap-grid.situation{grid-template-columns:repeat(4,1fr);}
+.heatmap-cell{border-radius:4px;padding:8px 6px;text-align:center;position:relative;cursor:default;transition:transform .15s;}
+.heatmap-cell:hover{transform:scale(1.05);z-index:2;}
+.heatmap-cell .cell-label{font-size:9px;letter-spacing:1px;color:rgba(255,255,255,.65);text-transform:uppercase;display:block;margin-bottom:4px;}
+.heatmap-cell .cell-val{font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:700;color:#fff;display:block;line-height:1;}
+.heatmap-cell .cell-val.na{font-size:13px;color:rgba(255,255,255,.3);}
+
+/* Leaderboard table */
+.lb-table{width:100%;border-collapse:collapse;font-size:12px;}
+.lb-table thead th{background:var(--surface2);color:var(--cyan);font-family:'Barlow Condensed',sans-serif;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;padding:7px 10px;text-align:left;border-bottom:1px solid var(--border);position:sticky;top:0;}
+.lb-table tbody tr{border-bottom:1px solid #0F1D2E;transition:background .1s;}
+.lb-table tbody tr:hover{background:var(--surface2);}
+.lb-table tbody td{padding:6px 10px;white-space:nowrap;}
+.lb-table tbody tr.highlighted{background:rgba(0,200,240,.06);border-left:2px solid var(--cyan);}
+.sv-bar-cell{display:flex;align-items:center;gap:8px;}
+.sv-bar-bg{flex:1;height:8px;background:#0D1828;border-radius:2px;overflow:hidden;}
+.sv-bar-fg{height:100%;border-radius:2px;background:var(--cyan);}
+.sv-val{font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:600;color:var(--text-bright);width:46px;text-align:right;}
+
+/* Predictor importance */
+.pred-row{display:flex;align-items:center;gap:8px;padding:3px 0;border-bottom:1px solid #0D1826;}
+.pred-rank{width:22px;font-family:'Barlow Condensed',sans-serif;font-size:11px;color:var(--text-dim);text-align:right;}
+.pred-name{width:180px;min-width:180px;font-size:11px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.pred-track{flex:1;height:12px;background:#0D1828;border-radius:2px;position:relative;overflow:hidden;}
+.pred-fill-pos{height:100%;border-radius:2px;background:linear-gradient(90deg,#00C8F0,#00A8D0);}
+.pred-fill-neg{height:100%;border-radius:2px;background:linear-gradient(90deg,#F05060,#D04050);}
+.pred-val{width:48px;text-align:right;font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:600;}
+.pred-dir{width:16px;text-align:center;font-size:12px;}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:5px;height:5px;}
+::-webkit-scrollbar-track{background:var(--bg);}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+</style>
+</head>
+<body>
+<header>
+  <div style="position:absolute;right:-40px;top:-60px;width:280px;height:180px;border:1px solid #1E3A5F22;border-radius:50%;pointer-events:none;opacity:.3;"></div>
+  <div class="header-icon">🥅</div>
+  <div class="header-title">
+    <h1>Goalie Intelligence System</h1>
+    <div class="sub">Advanced Goaltending Analytics &amp; Projection Model · 2025–26</div>
+  </div>
+  <div class="header-badge">
+    <div class="hbadge">Ridge Model</div>
+    <div class="hbadge">39+ Goalies</div>
+    <div class="hbadge">Shot Detail</div>
+    <div class="hbadge">3-Season</div>
+  </div>
+</header>
+
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-section">Navigation</div>
+    <div class="nav-item active" onclick="showTab('scout',this)"><span class="nav-icon">📋</span> Scout Board</div>
+    <div class="nav-item" onclick="showTab('proj',this)"><span class="nav-icon">📈</span> Next-10 Proj.</div>
+    <div class="nav-item" onclick="showTab('shot',this)"><span class="nav-icon">🎯</span> Shot Detail</div>
+    <div class="nav-item" onclick="showTab('drivers',this)"><span class="nav-icon">🔬</span> Model Drivers</div>
+
+    <div class="sidebar-section">Scout Filters</div>
+    <div class="filter-label">Tier</div>
+    <select id="filter-tier" onchange="applyFilters()">
+      <option value="All">All Tiers</option>
+      <option value="Elite">Elite</option>
+      <option value="Strong">Strong</option>
+      <option value="Average">Average</option>
+      <option value="Weak">Weak</option>
+    </select>
+    <div class="filter-label">Trend</div>
+    <select id="filter-trend" onchange="applyFilters()">
+      <option value="All">All Trends</option>
+      <option value="Improving">Improving</option>
+      <option value="Flat">Flat</option>
+      <option value="Declining">Declining</option>
+    </select>
+    <div class="filter-label">Outlook</div>
+    <select id="filter-outlook" onchange="applyFilters()">
+      <option value="All">All</option>
+      <option value="Regression Watch">Regression Watch</option>
+      <option value="Rebound Watch">Rebound Watch</option>
+      <option value="Cooling">Cooling</option>
+      <option value="Stable">Stable</option>
+    </select>
+  </aside>
+
+  <main class="main">
+    <!-- KPI ROW -->
+    <div class="kpi-row">
+      <div class="kpi">
+        <div class="kpi-label">Goalies Tracked</div>
+        <div class="kpi-val" style="color:var(--cyan)">55</div>
+        <div class="kpi-sub">20+ GP this season</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Elite Tier (3yr)</div>
+        <div class="kpi-val" style="color:var(--green)">4</div>
+        <div class="kpi-sub">Hellebuyck · Shesterkin · Sorokin · Vasilevskiy</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Avg Proj GSAx/10</div>
+        <div class="kpi-val" style="color:var(--gold)">+1.2</div>
+        <div class="kpi-sub">Next 10 games, all goalies</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Regression Flags</div>
+        <div class="kpi-val" style="color:var(--red)">4</div>
+        <div class="kpi-sub">Forsberg · Wedgewood · Grubauer · Vladar</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Top Sv% (20+ GP)</div>
+        <div class="kpi-val" style="color:var(--purple)">.9228</div>
+        <div class="kpi-sub">Devin Cooley · 20 GP</div>
+      </div>
+    </div>
+
+    <!-- ══ SCOUT BOARD ══ -->
+    <div id="tab-scout" class="tab-panel active">
+      <div class="card">
+        <div class="card-title"><span class="dot"></span>3-Year Scouting Summary — All Goalies</div>
+        <div class="table-wrap">
+          <table class="scout-table"><thead><tr>
+            <th>#</th><th>Goalie</th><th>3yr Rank</th><th>25-26</th><th>24-25</th><th>23-24</th>
+            <th>3yr Tier</th><th>Current Tier</th><th>Trend</th><th>Volatility</th><th>Outlook</th><th>Reg Risk</th><th>Reb Risk</th>
+          </tr></thead><tbody id="scout-tbody"></tbody></table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ PROJECTIONS ══ -->
+    <div id="tab-proj" class="tab-panel">
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title"><span class="dot"></span>Projected GSAx — Next 10 Games</div>
+          <div class="bar-wrap" id="proj-bars"></div>
+        </div>
+        <div class="card">
+          <div class="card-title"><span class="dot dot-g"></span>Form vs 3-Year Baseline</div>
+          <canvas id="scatter-chart" height="390"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ SHOT DETAIL ══ -->
+    <div id="tab-shot" class="tab-panel">
+      <div class="goalie-selector">
+        <label>Goalie</label>
+        <select id="shot-goalie-select" onchange="renderShotDetail()"></select>
+        <label style="margin-left:16px">Compare To</label>
+        <select id="shot-compare-select" onchange="renderShotDetail()">
+          <option value="">— None —</option>
+        </select>
+      </div>
+
+      <div class="grid-2">
+        <!-- LEFT: heatmaps -->
+        <div>
+          <div class="card">
+            <div class="card-title"><span class="dot dot-gold"></span>Save % by Shot Distance</div>
+            <div class="heatmap-grid dist" id="hm-dist"></div>
+          </div>
+          <div class="card">
+            <div class="card-title"><span class="dot dot-gold"></span>Save % by Shot Angle</div>
+            <div class="heatmap-grid angle" id="hm-angle"></div>
+          </div>
+          <div class="grid-2" style="gap:14px">
+            <div class="card">
+              <div class="card-title"><span class="dot dot-p"></span>Side</div>
+              <div class="heatmap-grid side" id="hm-side"></div>
+            </div>
+            <div class="card">
+              <div class="card-title"><span class="dot dot-p"></span>Game State</div>
+              <div class="heatmap-grid gamestate" id="hm-gamestate"></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title"><span class="dot"></span>Period &amp; Situation</div>
+            <div class="grid-2" style="gap:14px">
+              <div>
+                <div class="heatmap-title">Period</div>
+                <div class="heatmap-grid period" id="hm-period"></div>
+              </div>
+              <div>
+                <div class="heatmap-title">Play Type</div>
+                <div class="heatmap-grid situation" id="hm-situation"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT: leaderboard + predictor importance -->
+        <div>
+          <div class="card">
+            <div class="card-title"><span class="dot"></span>Overall Sv% Leaderboard <span style="font-size:9px;color:var(--text-dim);font-weight:400;letter-spacing:1px;margin-left:8px">20+ GP · SORTED BY OVERALL</span></div>
+            <div class="table-wrap" style="max-height:300px">
+              <table class="lb-table" id="lb-table">
+                <thead><tr><th>#</th><th>Goalie</th><th>GP</th><th>Overall Sv%</th><th>ES Sv%</th><th>PK Sv%</th><th>Rebound Sv%</th></tr></thead>
+                <tbody id="lb-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title"><span class="dot dot-p"></span>Shot-Detail Predictor Importance <span style="font-size:9px;color:var(--text-dim);font-weight:400;letter-spacing:1px;margin-left:8px">RIDGE β</span></div>
+            <div style="overflow-y:auto;max-height:340px;" id="pred-importance"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ MODEL DRIVERS ══ -->
+    <div id="tab-drivers" class="tab-panel">
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title"><span class="dot"></span>Current Season Ridge — Global Feature Importance</div>
+          <div id="drivers-global"></div>
+        </div>
+        <div class="card">
+          <div class="card-title"><span class="dot dot-g"></span>Top-10 Cohort — Avg Feature Contribution</div>
+          <div id="drivers-cohort"></div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+// DATA
+// ═══════════════════════════════════════════════════════════
+const scoutData=[{goalie:"Connor Hellebuyck",rank3:1,r26:14,r25:1,r24:2,vol:"Medium",tier:"Elite",curTier:"Strong",trend:"Declining",outlook:"Rebound Watch",regRisk:"No",rebRisk:"Yes"},{goalie:"Igor Shesterkin",rank3:2,r26:6,r25:7,r24:14,vol:"Low",tier:"Elite",curTier:"Elite",trend:"Improving",outlook:"Cooling",regRisk:"No",rebRisk:"No"},{goalie:"Ilya Sorokin",rank3:3,r26:1,r25:10,r24:30,vol:"High",tier:"Elite",curTier:"Elite",trend:"Improving",outlook:"Stable",regRisk:"No",rebRisk:"No"},{goalie:"Andrei Vasilevskiy",rank3:4,r26:2,r25:4,r24:42,vol:"High",tier:"Elite",curTier:"Elite",trend:"Improving",outlook:"Stable",regRisk:"No",rebRisk:"No"},{goalie:"Logan Thompson",rank3:5,r26:5,r25:5,r24:20,vol:"Medium",tier:"Strong",curTier:"Elite",trend:"Improving",outlook:"Stable",regRisk:"No",rebRisk:"No"},{goalie:"Thatcher Demko",rank3:6,r26:19,r25:35,r24:5,vol:"High",tier:"Strong",curTier:"Average",trend:"Declining",outlook:"Cooling",regRisk:"No",rebRisk:"No"},{goalie:"Joey Daccord",rank3:7,r26:20,r25:6,r24:18,vol:"Medium",tier:"Strong",curTier:"Average",trend:"Flat",outlook:"Rebound Watch",regRisk:"No",rebRisk:"Yes"},{goalie:"Jeremy Swayman",rank3:8,r26:8,r25:46,r24:3,vol:"High",tier:"Strong",curTier:"Strong",trend:"Flat",outlook:"Stable",regRisk:"No",rebRisk:"No"},{goalie:"Anthony Stolarz",rank3:9,r26:55,r25:2,r24:1,vol:"High",tier:"Strong",curTier:"Weak",trend:"Declining",outlook:"Cooling",regRisk:"No",rebRisk:"No"},{goalie:"Jake Allen",rank3:10,r26:12,r25:8,r24:37,vol:"High",tier:"Strong",curTier:"Strong",trend:"Improving",outlook:"Stable",regRisk:"No",rebRisk:"No"},{goalie:"Darcy Kuemper",rank3:11,r26:28,r25:3,r24:51,vol:"High",tier:"Strong",curTier:"Average",trend:"Improving",outlook:"Cooling",regRisk:"No",rebRisk:"No"},{goalie:"Filip Gustavsson",rank3:12,r26:26,r25:14,r24:48,vol:"High",tier:"Strong",curTier:"Average",trend:"Improving",outlook:"Cooling",regRisk:"No",rebRisk:"No"},{goalie:"Cam Talbot",rank3:13,r26:43,r25:16,r24:10,vol:"High",tier:"Average",curTier:"Weak",trend:"Declining",outlook:"Cooling",regRisk:"No",rebRisk:"No"},{goalie:"Alex Lyon",rank3:14,r26:13,r25:33,r24:36,vol:"Medium",tier:"Average",curTier:"Strong",trend:"Improving",outlook:"Stable",regRisk:"No",rebRisk:"No"},{goalie:"Jake Oettinger",rank3:15,r26:25,r25:18,r24:29,vol:"Low",tier:"Average",curTier:"Average",trend:"Flat",outlook:"Cooling",regRisk:"No",rebRisk:"No"},{goalie:"John Gibson",rank3:16,r26:21,r25:12,r24:49,vol:"High",tier:"Average",curTier:"Average",trend:"Improving",outlook:"Cooling",regRisk:"No",rebRisk:"No"},{goalie:"Anton Forsberg",rank3:17,r26:3,r25:28,r24:52,vol:"High",tier:"Average",curTier:"Elite",trend:"Improving",outlook:"Regression Watch",regRisk:"Yes",rebRisk:"No"},{goalie:"UPL",rank3:18,r26:23,r25:44,r24:13,vol:"High",tier:"Average",curTier:"Average",trend:"Declining",outlook:"Cooling",regRisk:"No",rebRisk:"No"},{goalie:"Lukas Dostal",rank3:19,r26:27,r25:21,r24:47,vol:"High",tier:"Average",curTier:"Average",trend:"Improving",outlook:"Cooling",regRisk:"No",rebRisk:"No"},{goalie:"Joel Hofer",rank3:20,r26:38,r25:38,r24:15,vol:"Medium",tier:"Average",curTier:"Average",trend:"Declining",outlook:"Cooling",regRisk:"No",rebRisk:"No"},{goalie:"Scott Wedgewood",rank3:21,r26:10,r25:34,r24:50,vol:"High",tier:"Average",curTier:"Strong",trend:"Improving",outlook:"Regression Watch",regRisk:"Yes",rebRisk:"No"},{goalie:"Sergei Bobrovsky",rank3:22,r26:54,r25:23,r24:7,vol:"High",tier:"Average",curTier:"Weak",trend:"Declining",outlook:"Cooling",regRisk:"No",rebRisk:"No"},{goalie:"Pyotr Kochetkov",rank3:23,r26:40,r25:24,r24:23,vol:"Medium",tier:"Average",curTier:"Average",trend:"Declining",outlook:"Cooling",regRisk:"No",rebRisk:"No"},{goalie:"Charlie Lindgren",rank3:24,r26:39,r25:40,r24:21,vol:"Medium",tier:"Average",curTier:"Average",trend:"Declining",outlook:"Cooling",regRisk:"No",rebRisk:"No"},{goalie:"Kevin Lankinen",rank3:25,r26:50,r25:29,r24:25,vol:"High",tier:"Average",curTier:"Weak",trend:"Declining",outlook:"Cooling",regRisk:"No",rebRisk:"No"},{goalie:"Tristan Jarry",rank3:26,r26:30,r25:48,r24:33,vol:"Medium",tier:"Average",curTier:"Average",trend:"Flat",outlook:"Cooling",regRisk:"No",rebRisk:"No"},{goalie:"Stuart Skinner",rank3:27,r26:29,r25:42,r24:34,vol:"Medium",tier:"Average",curTier:"Average",trend:"Flat",outlook:"Stable",regRisk:"No",rebRisk:"No"},{goalie:"Jacob Markstrom",rank3:28,r26:44,r25:31,r24:9,vol:"High",tier:"Weak",curTier:"Weak",trend:"Declining",outlook:"Cooling",regRisk:"No",rebRisk:"No"},{goalie:"Alex Nedeljkovic",rank3:29,r26:32,r25:39,r24:43,vol:"Low",tier:"Weak",curTier:"Average",trend:"Improving",outlook:"Stable",regRisk:"No",rebRisk:"No"},{goalie:"Juuse Saros",rank3:30,r26:49,r25:47,r24:22,vol:"High",tier:"Weak",curTier:"Weak",trend:"Declining",outlook:"Cooling",regRisk:"No",rebRisk:"No"},{goalie:"Jordan Binnington",rank3:31,r26:57,r25:20,r24:8,vol:"High",tier:"Weak",curTier:"Weak",trend:"Declining",outlook:"Cooling",regRisk:"No",rebRisk:"No"},{goalie:"Philipp Grubauer",rank3:32,r26:4,r25:57,r24:39,vol:"High",tier:"Weak",curTier:"Elite",trend:"Improving",outlook:"Regression Watch",regRisk:"Yes",rebRisk:"No"},{goalie:"Dan Vladar",rank3:33,r26:18,r25:32,r24:59,vol:"High",tier:"Weak",curTier:"Strong",trend:"Improving",outlook:"Regression Watch",regRisk:"Yes",rebRisk:"No"},{goalie:"Elvis Merzlikins",rank3:34,r26:37,r25:43,r24:40,vol:"Low",tier:"Weak",curTier:"Average",trend:"Flat",outlook:"Stable",regRisk:"No",rebRisk:"No"},{goalie:"Joonas Korpisalo",rank3:35,r26:35,r25:41,r24:54,vol:"Medium",tier:"Weak",curTier:"Average",trend:"Improving",outlook:"Stable",regRisk:"No",rebRisk:"No"},{goalie:"Vitek Vanecek",rank3:36,r26:36,r25:50,r24:56,vol:"Medium",tier:"Weak",curTier:"Average",trend:"Improving",outlook:"Stable",regRisk:"No",rebRisk:"No"},{goalie:"Arvid Soderblom",rank3:37,r26:48,r25:36,r24:58,vol:"Medium",tier:"Weak",curTier:"Weak",trend:"Improving",outlook:"Cooling",regRisk:"No",rebRisk:"No"},{goalie:"Petr Mrazek",rank3:38,r26:58,r25:49,r24:26,vol:"High",tier:"Weak",curTier:"Weak",trend:"Declining",outlook:"Cooling",regRisk:"No",rebRisk:"No"},{goalie:"Samuel Ersson",rank3:39,r26:56,r25:54,r24:45,vol:"Low",tier:"Weak",curTier:"Weak",trend:"Declining",outlook:"Cooling",regRisk:"No",rebRisk:"No"}];
+
+const projData=[{goalie:"Ilya Sorokin",tier:"Elite",vol:"High",curTier:"Elite",base:.369,form:.795,delta:.426,dir:"Strong Up",proj:5.18,lo:2.78,hi:7.58},{goalie:"Logan Thompson",tier:"Strong",vol:"Medium",curTier:"Elite",base:.392,form:.472,delta:.08,dir:"Up",proj:4.2,lo:2.6,hi:5.8},{goalie:"Andrei Vasilevskiy",tier:"Elite",vol:"High",curTier:"Elite",base:.328,form:.569,delta:.241,dir:"Strong Up",proj:4.12,lo:1.72,hi:6.52},{goalie:"Igor Shesterkin",tier:"Elite",vol:"Low",curTier:"Elite",base:.343,form:.457,delta:.114,dir:"Up",proj:3.83,lo:3.03,hi:4.63},{goalie:"Connor Hellebuyck",tier:"Elite",vol:"Medium",curTier:"Strong",base:.46,form:.2,delta:-.26,dir:"Down",proj:3.69,lo:2.09,hi:5.29},{goalie:"Jeremy Swayman",tier:"Strong",vol:"High",curTier:"Strong",base:.229,form:.426,delta:.197,dir:"Strong Up",proj:2.98,lo:.58,hi:5.38},{goalie:"Alex Lyon",tier:"Average",vol:"Medium",curTier:"Strong",base:.163,form:.363,delta:.2,dir:"Strong Up",proj:2.33,lo:.73,hi:3.93},{goalie:"Jake Allen",tier:"Strong",vol:"High",curTier:"Strong",base:.247,form:.203,delta:-.044,dir:"Flat",proj:2.31,lo:-.09,hi:4.71},{goalie:"John Gibson",tier:"Average",vol:"High",curTier:"Average",base:.18,form:.219,delta:.039,dir:"Up",proj:1.93,lo:-.47,hi:4.33},{goalie:"Anton Forsberg",tier:"Average",vol:"High",curTier:"Elite",base:.07,form:.38,delta:.31,dir:"Strong Up",proj:1.78,lo:-.62,hi:4.18},{goalie:"Thatcher Demko",tier:"Strong",vol:"High",curTier:"Average",base:.198,form:.101,delta:-.097,dir:"Down",proj:1.64,lo:-.76,hi:4.04},{goalie:"Philipp Grubauer",tier:"Weak",vol:"High",curTier:"Elite",base:-.1,form:.491,delta:.59,dir:"Strong Up",proj:1.07,lo:-1.33,hi:3.47},{goalie:"Joey Daccord",tier:"Strong",vol:"Medium",curTier:"Average",base:.146,form:.029,delta:-.117,dir:"Down",proj:1.05,lo:-.55,hi:2.65},{goalie:"Darcy Kuemper",tier:"Strong",vol:"High",curTier:"Average",base:.121,form:.058,delta:-.063,dir:"Down",proj:.99,lo:-1.41,hi:3.39},{goalie:"Lukas Dostal",tier:"Average",vol:"High",curTier:"Average",base:.08,form:.094,delta:.014,dir:"Flat",proj:.85,lo:-1.55,hi:3.25},{goalie:"Filip Gustavsson",tier:"Strong",vol:"High",curTier:"Average",base:.08,form:.083,delta:.003,dir:"Flat",proj:.81,lo:-1.59,hi:3.21},{goalie:"Tristan Jarry",tier:"Average",vol:"Medium",curTier:"Average",base:.031,form:.172,delta:.141,dir:"Up",proj:.81,lo:-.79,hi:2.41},{goalie:"Stuart Skinner",tier:"Average",vol:"Medium",curTier:"Average",base:.045,form:.132,delta:.087,dir:"Up",proj:.75,lo:-.85,hi:2.35},{goalie:"Scott Wedgewood",tier:"Average",vol:"High",curTier:"Strong",base:.007,form:.183,delta:.175,dir:"Strong Up",proj:.69,lo:-1.71,hi:3.09},{goalie:"Jake Oettinger",tier:"Average",vol:"Low",curTier:"Average",base:.065,form:-.026,delta:-.09,dir:"Down",proj:.33,lo:-.47,hi:1.13},{goalie:"Anthony Stolarz",tier:"Strong",vol:"High",curTier:"Weak",base:.239,form:-.784,delta:-1.023,dir:"Strong Down",proj:-1.19,lo:-3.59,hi:1.21},{goalie:"Jacob Markstrom",tier:"Weak",vol:"High",curTier:"Weak",base:-.003,form:-.364,delta:-.361,dir:"Strong Down",proj:-1.29,lo:-3.69,hi:1.11},{goalie:"Kevin Lankinen",tier:"Average",vol:"High",curTier:"Weak",base:-.046,form:-.309,delta:-.263,dir:"Strong Down",proj:-1.38,lo:-3.78,hi:1.02},{goalie:"Sergei Bobrovsky",tier:"Average",vol:"High",curTier:"Weak",base:.015,form:-.356,delta:-.372,dir:"Strong Down",proj:-1.15,lo:-3.55,hi:1.25},{goalie:"Jordan Binnington",tier:"Weak",vol:"High",curTier:"Weak",base:-.132,form:-.779,delta:-.647,dir:"Strong Down",proj:-3.58,lo:-5.98,hi:-1.18},{goalie:"Petr Mrazek",tier:"Weak",vol:"High",curTier:"Weak",base:-.379,form:-.797,delta:-.418,dir:"Strong Down",proj:-5.25,lo:-7.65,hi:-2.85},{goalie:"Samuel Ersson",tier:"Weak",vol:"Low",curTier:"Weak",base:-.424,form:-.755,delta:-.331,dir:"Strong Down",proj:-5.4,lo:-6.2,hi:-4.6}];
+
+const shotData=[{name:"Devin Cooley",gp:20,shots:544,ga:42,sv_overall:.9228,sv_es:.9176,sv_pk:.9167,sv_rebound:.9286,sv_non_rebound:.9221,sv_rush:null,sv_non_rush:.9228,sv_dist_0_10:.8495,sv_dist_10_20:.8734,sv_dist_20_30:.9263,sv_dist_30_40:.9394,sv_dist_40plus:.9719,sv_angle_0_15:.9065,sv_angle_15_30:.9348,sv_angle_30_45:.9262,sv_angle_45_60:.9524,sv_angle_60_90:.8852,sv_left:.9106,sv_right:.9344,sv_center:.9259,sv_high_speed:.9326,sv_low_speed:.9122,sv_period1:.925,sv_period2:.9149,sv_period3:.9341,sv_leading:.9032,sv_tied:.9427,sv_trailing:.9167,sv_post_faceoff:.9495,sv_mid_play:.9202,sv_long_play:.8675},{name:"Mackenzie Blackwood",gp:24,shots:620,ga:52,sv_overall:.9161,sv_es:.9252,sv_pk:.8235,sv_rebound:.8689,sv_non_rebound:.9213,sv_rush:1,sv_non_rush:.916,sv_dist_0_10:.8704,sv_dist_10_20:.8387,sv_dist_20_30:.871,sv_dist_30_40:.9406,sv_dist_40plus:.9778,sv_angle_0_15:.9097,sv_angle_15_30:.9448,sv_angle_30_45:.8919,sv_angle_45_60:.9369,sv_angle_60_90:.8889,sv_left:.9225,sv_right:.9172,sv_center:.8814,sv_high_speed:.9135,sv_low_speed:.9188,sv_period1:.9317,sv_period2:.9136,sv_period3:.9062,sv_leading:.9,sv_tied:.9016,sv_trailing:.9297,sv_post_faceoff:.9353,sv_mid_play:.9042,sv_long_play:.9067},{name:"Andrei Vasilevskiy",gp:39,shots:1005,ga:85,sv_overall:.9154,sv_es:.9196,sv_pk:.9375,sv_rebound:.8511,sv_non_rebound:.9221,sv_rush:1,sv_non_rush:.9153,sv_dist_0_10:.8544,sv_dist_10_20:.869,sv_dist_20_30:.8662,sv_dist_30_40:.9421,sv_dist_40plus:.969,sv_angle_0_15:.8784,sv_angle_15_30:.9283,sv_angle_30_45:.94,sv_angle_45_60:.908,sv_angle_60_90:.93,sv_left:.9336,sv_right:.9078,sv_center:.86,sv_high_speed:.9022,sv_low_speed:.9316,sv_period1:.9016,sv_period2:.9175,sv_period3:.9288,sv_leading:.8906,sv_tied:.9231,sv_trailing:.9198,sv_post_faceoff:.9269,sv_mid_play:.9008,sv_long_play:.9396},{name:"Philipp Grubauer",gp:23,shots:625,ga:53,sv_overall:.9152,sv_es:.9286,sv_pk:.8462,sv_rebound:.8654,sv_non_rebound:.9197,sv_rush:null,sv_non_rush:.9152,sv_dist_0_10:.9082,sv_dist_10_20:.7935,sv_dist_20_30:.8936,sv_dist_30_40:.9292,sv_dist_40plus:.9693,sv_angle_0_15:.8926,sv_angle_15_30:.9281,sv_angle_30_45:.9036,sv_angle_45_60:.9237,sv_angle_60_90:.9403,sv_left:.9291,sv_right:.9113,sv_center:.86,sv_high_speed:.9028,sv_low_speed:.9258,sv_period1:.9066,sv_period2:.9221,sv_period3:.9163,sv_leading:.9175,sv_tied:.9068,sv_trailing:.9276,sv_post_faceoff:.9151,sv_mid_play:.9223,sv_long_play:.8942},{name:"Ilya Sorokin",gp:37,shots:1066,ga:91,sv_overall:.9146,sv_es:.9255,sv_pk:.9167,sv_rebound:.9268,sv_non_rebound:.913,sv_rush:1,sv_non_rush:.9146,sv_dist_0_10:.8894,sv_dist_10_20:.8586,sv_dist_20_30:.8611,sv_dist_30_40:.9259,sv_dist_40plus:.979,sv_angle_0_15:.906,sv_angle_15_30:.9137,sv_angle_30_45:.9091,sv_angle_45_60:.9412,sv_angle_60_90:.9153,sv_left:.9207,sv_right:.9034,sv_center:.9352,sv_high_speed:.917,sv_low_speed:.9126,sv_period1:.9202,sv_period2:.9044,sv_period3:.9186,sv_leading:.9236,sv_tied:.9143,sv_trailing:.9084,sv_post_faceoff:.9268,sv_mid_play:.9023,sv_long_play:.9333},{name:"Igor Shesterkin",gp:36,shots:1001,ga:87,sv_overall:.9131,sv_es:.9282,sv_pk:.8077,sv_rebound:.8315,sv_non_rebound:.9211,sv_rush:null,sv_non_rush:.9131,sv_dist_0_10:.8273,sv_dist_10_20:.8732,sv_dist_20_30:.863,sv_dist_30_40:.9397,sv_dist_40plus:.9653,sv_angle_0_15:.8958,sv_angle_15_30:.9206,sv_angle_30_45:.9204,sv_angle_45_60:.9268,sv_angle_60_90:.9,sv_left:.8812,sv_right:.9353,sv_center:.956,sv_high_speed:.9168,sv_low_speed:.9093,sv_period1:.9099,sv_period2:.9184,sv_period3:.92,sv_leading:.9203,sv_tied:.9177,sv_trailing:.8997,sv_post_faceoff:.906,sv_mid_play:.9076,sv_long_play:.9474},{name:"Logan Thompson",gp:41,shots:1121,ga:98,sv_overall:.9126,sv_es:.9211,sv_pk:.8611,sv_rebound:.8387,sv_non_rebound:.9193,sv_rush:1,sv_non_rush:.9125,sv_dist_0_10:.8372,sv_dist_10_20:.835,sv_dist_20_30:.9091,sv_dist_30_40:.9385,sv_dist_40plus:.9725,sv_angle_0_15:.876,sv_angle_15_30:.8986,sv_angle_30_45:.9437,sv_angle_45_60:.9271,sv_angle_60_90:.9244,sv_left:.9122,sv_right:.9234,sv_center:.8434,sv_high_speed:.9218,sv_low_speed:.9032,sv_period1:.9264,sv_period2:.9003,sv_period3:.9084,sv_leading:.9125,sv_tied:.9195,sv_trailing:.9066,sv_post_faceoff:.9167,sv_mid_play:.9113,sv_long_play:.9086},{name:"Alex Lyon",gp:28,shots:809,ga:71,sv_overall:.9122,sv_es:.9132,sv_pk:1,sv_rebound:.8636,sv_non_rebound:.9166,sv_rush:null,sv_non_rush:.9122,sv_dist_0_10:.8561,sv_dist_10_20:.8349,sv_dist_20_30:.8504,sv_dist_30_40:.9359,sv_dist_40plus:.9856,sv_angle_0_15:.907,sv_angle_15_30:.8905,sv_angle_30_45:.9069,sv_angle_45_60:.9302,sv_angle_60_90:.9574,sv_left:.9105,sv_right:.9101,sv_center:.9355,sv_high_speed:.9373,sv_low_speed:.8878,sv_period1:.9087,sv_period2:.9273,sv_period3:.9077,sv_leading:.9151,sv_tied:.9098,sv_trailing:.9124,sv_post_faceoff:.9247,sv_mid_play:.9002,sv_long_play:.9245},{name:"Scott Wedgewood",gp:32,shots:815,ga:72,sv_overall:.9117,sv_es:.9196,sv_pk:.8333,sv_rebound:.8971,sv_non_rebound:.913,sv_rush:null,sv_non_rush:.9117,sv_dist_0_10:.7862,sv_dist_10_20:.8381,sv_dist_20_30:.9496,sv_dist_30_40:.9407,sv_dist_40plus:.9678,sv_angle_0_15:.8824,sv_angle_15_30:.8947,sv_angle_30_45:.9255,sv_angle_45_60:.9362,sv_angle_60_90:.9346,sv_left:.9147,sv_right:.9079,sv_center:.9155,sv_high_speed:.9214,sv_low_speed:.9013,sv_period1:.9158,sv_period2:.8846,sv_period3:.9357,sv_leading:.9167,sv_tied:.8808,sv_trailing:.9294,sv_post_faceoff:.8991,sv_mid_play:.915,sv_long_play:.9388},{name:"Filip Gustavsson",gp:38,shots:1072,ga:97,sv_overall:.9095,sv_es:.9177,sv_pk:.9412,sv_rebound:.8391,sv_non_rebound:.9157,sv_rush:1,sv_non_rush:.9093,sv_dist_0_10:.7892,sv_dist_10_20:.8658,sv_dist_20_30:.9026,sv_dist_30_40:.9393,sv_dist_40plus:.964,sv_angle_0_15:.869,sv_angle_15_30:.903,sv_angle_30_45:.9392,sv_angle_45_60:.929,sv_angle_60_90:.907,sv_left:.9118,sv_right:.9114,sv_center:.8864,sv_high_speed:.9079,sv_low_speed:.9112,sv_period1:.9066,sv_period2:.9257,sv_period3:.9057,sv_leading:.9106,sv_tied:.9215,sv_trailing:.896,sv_post_faceoff:.9018,sv_mid_play:.9199,sv_long_play:.8919},{name:"Spencer Knight",gp:41,shots:1162,ga:107,sv_overall:.9079,sv_es:.9127,sv_pk:.9697,sv_rebound:.8387,sv_non_rebound:.9139,sv_rush:1,sv_non_rush:.9078,sv_dist_0_10:.8545,sv_dist_10_20:.8427,sv_dist_20_30:.8494,sv_dist_30_40:.9196,sv_dist_40plus:.9828,sv_angle_0_15:.9289,sv_angle_15_30:.9,sv_angle_30_45:.9273,sv_angle_45_60:.8571,sv_angle_60_90:.9155,sv_left:.9031,sv_right:.9123,sv_center:.9114,sv_high_speed:.9185,sv_low_speed:.8966,sv_period1:.9227,sv_period2:.9144,sv_period3:.8876,sv_leading:.9026,sv_tied:.934,sv_trailing:.874,sv_post_faceoff:.9173,sv_mid_play:.9077,sv_long_play:.8876},{name:"John Gibson",gp:38,shots:1006,ga:94,sv_overall:.9066,sv_es:.914,sv_pk:.9,sv_rebound:.8788,sv_non_rebound:.9085,sv_rush:1,sv_non_rush:.9065,sv_dist_0_10:.8593,sv_dist_10_20:.8148,sv_dist_20_30:.8704,sv_dist_30_40:.9234,sv_dist_40plus:.9659,sv_angle_0_15:.8686,sv_angle_15_30:.8715,sv_angle_30_45:.9231,sv_angle_45_60:.9605,sv_angle_60_90:.9485,sv_left:.9093,sv_right:.9089,sv_center:.8817,sv_high_speed:.9128,sv_low_speed:.9,sv_period1:.9213,sv_period2:.894,sv_period3:.9055,sv_leading:.888,sv_tied:.9049,sv_trailing:.9186,sv_post_faceoff:.9172,sv_mid_play:.8933,sv_long_play:.9328},{name:"Jake Allen",gp:29,shots:799,ga:76,sv_overall:.9049,sv_es:.9021,sv_pk:1,sv_rebound:.7778,sv_non_rebound:.9175,sv_rush:null,sv_non_rush:.9049,sv_dist_0_10:.8131,sv_dist_10_20:.7933,sv_dist_20_30:.8779,sv_dist_30_40:.95,sv_dist_40plus:.9926,sv_angle_0_15:.9022,sv_angle_15_30:.8607,sv_angle_30_45:.9648,sv_angle_45_60:.8759,sv_angle_60_90:.9231,sv_left:.9005,sv_right:.9015,sv_center:.9444,sv_high_speed:.913,sv_low_speed:.8971,sv_period1:.8992,sv_period2:.9094,sv_period3:.9052,sv_leading:.8982,sv_tied:.9038,sv_trailing:.9142,sv_post_faceoff:.9242,sv_mid_play:.8914,sv_long_play:.9065},{name:"Jeremy Swayman",gp:39,shots:1134,ga:112,sv_overall:.9012,sv_es:.9222,sv_pk:.8387,sv_rebound:.8667,sv_non_rebound:.9048,sv_rush:null,sv_non_rush:.9012,sv_dist_0_10:.8408,sv_dist_10_20:.828,sv_dist_20_30:.8978,sv_dist_30_40:.8978,sv_dist_40plus:.9629,sv_angle_0_15:.8776,sv_angle_15_30:.9023,sv_angle_30_45:.9207,sv_angle_45_60:.9048,sv_angle_60_90:.903,sv_left:.8806,sv_right:.9246,sv_center:.8868,sv_high_speed:.8958,sv_low_speed:.9063,sv_period1:.9032,sv_period2:.9061,sv_period3:.8912,sv_leading:.8737,sv_tied:.9051,sv_trailing:.9153,sv_post_faceoff:.9089,sv_mid_play:.8932,sv_long_play:.9143},{name:"Connor Hellebuyck",gp:38,shots:1069,ga:106,sv_overall:.9008,sv_es:.9062,sv_pk:1,sv_rebound:.8333,sv_non_rebound:.908,sv_rush:1,sv_non_rush:.9007,sv_dist_0_10:.8077,sv_dist_10_20:.8393,sv_dist_20_30:.8831,sv_dist_30_40:.918,sv_dist_40plus:.9712,sv_angle_0_15:.8312,sv_angle_15_30:.9225,sv_angle_30_45:.9201,sv_angle_45_60:.8883,sv_angle_60_90:.9646,sv_left:.9097,sv_right:.91,sv_center:.8065,sv_high_speed:.9041,sv_low_speed:.8978,sv_period1:.9356,sv_period2:.8979,sv_period3:.8869,sv_leading:.9231,sv_tied:.9076,sv_trailing:.8814,sv_post_faceoff:.9258,sv_mid_play:.893,sv_long_play:.8772},{name:"Darcy Kuemper",gp:37,shots:917,ga:94,sv_overall:.8975,sv_es:.914,sv_pk:.9,sv_rebound:.8852,sv_non_rebound:.8984,sv_rush:null,sv_non_rush:.8975,sv_dist_0_10:.8425,sv_dist_10_20:.8274,sv_dist_20_30:.812,sv_dist_30_40:.9333,sv_dist_40plus:.9722,sv_angle_0_15:.8824,sv_angle_15_30:.8915,sv_angle_30_45:.9253,sv_angle_45_60:.8851,sv_angle_60_90:.8947,sv_left:.8889,sv_right:.9154,sv_center:.8587,sv_high_speed:.9081,sv_low_speed:.8875,sv_period1:.9172,sv_period2:.881,sv_period3:.8973,sv_leading:.9031,sv_tied:.9217,sv_trailing:.8516,sv_post_faceoff:.9371,sv_mid_play:.8584,sv_long_play:.9455},{name:"Jake Oettinger",gp:38,shots:999,ga:103,sv_overall:.8969,sv_es:.9085,sv_pk:.8333,sv_rebound:.8506,sv_non_rebound:.9013,sv_rush:null,sv_non_rush:.8969,sv_dist_0_10:.8258,sv_dist_10_20:.84,sv_dist_20_30:.8582,sv_dist_30_40:.8731,sv_dist_40plus:.971,sv_angle_0_15:.8685,sv_angle_15_30:.8803,sv_angle_30_45:.916,sv_angle_45_60:.9152,sv_angle_60_90:.9279,sv_left:.8995,sv_right:.8962,sv_center:.8876,sv_high_speed:.9064,sv_low_speed:.8868,sv_period1:.9094,sv_period2:.9011,sv_period3:.8842,sv_leading:.9061,sv_tied:.914,sv_trailing:.8708,sv_post_faceoff:.8938,sv_mid_play:.9039,sv_long_play:.883},{name:"Juuse Saros",gp:45,shots:1263,ga:136,sv_overall:.8923,sv_es:.8962,sv_pk:1,sv_rebound:.75,sv_non_rebound:.903,sv_rush:null,sv_non_rush:.8923,sv_dist_0_10:.7923,sv_dist_10_20:.7566,sv_dist_20_30:.9213,sv_dist_30_40:.9425,sv_dist_40plus:.96,sv_angle_0_15:.8522,sv_angle_15_30:.9019,sv_angle_30_45:.9436,sv_angle_45_60:.8617,sv_angle_60_90:.8792,sv_left:.8937,sv_right:.8951,sv_center:.8673,sv_high_speed:.9114,sv_low_speed:.8738,sv_period1:.8882,sv_period2:.8956,sv_period3:.9041,sv_leading:.8871,sv_tied:.8987,sv_trailing:.8885,sv_post_faceoff:.9053,sv_mid_play:.8827,sv_long_play:.8933},{name:"Sergei Bobrovsky",gp:42,shots:994,ga:127,sv_overall:.8722,sv_es:.8817,sv_pk:.9143,sv_rebound:.7403,sv_non_rebound:.8833,sv_rush:null,sv_non_rush:.8722,sv_dist_0_10:.7558,sv_dist_10_20:.7764,sv_dist_20_30:.8077,sv_dist_30_40:.9177,sv_dist_40plus:.9705,sv_angle_0_15:.8419,sv_angle_15_30:.8972,sv_angle_30_45:.8708,sv_angle_45_60:.8741,sv_angle_60_90:.885,sv_left:.8781,sv_right:.8686,sv_center:.8627,sv_high_speed:.9024,sv_low_speed:.8415,sv_period1:.8853,sv_period2:.8824,sv_period3:.8418,sv_leading:.8552,sv_tied:.8757,sv_trailing:.883,sv_post_faceoff:.8851,sv_mid_play:.8601,sv_long_play:.88},{name:"Jordan Binnington",gp:33,shots:826,ga:112,sv_overall:.8644,sv_es:.8781,sv_pk:.9545,sv_rebound:.75,sv_non_rebound:.8753,sv_rush:1,sv_non_rush:.8642,sv_dist_0_10:.7541,sv_dist_10_20:.7838,sv_dist_20_30:.8302,sv_dist_30_40:.8933,sv_dist_40plus:.9467,sv_angle_0_15:.849,sv_angle_15_30:.8674,sv_angle_30_45:.8779,sv_angle_45_60:.8483,sv_angle_60_90:.8842,sv_left:.8737,sv_right:.859,sv_center:.8462,sv_high_speed:.8589,sv_low_speed:.8699,sv_period1:.8863,sv_period2:.8279,sv_period3:.899,sv_leading:.8315,sv_tied:.8863,sv_trailing:.874,sv_post_faceoff:.8651,sv_mid_play:.8606,sv_long_play:.8761},{name:"Samuel Ersson",gp:25,shots:588,ga:84,sv_overall:.8571,sv_es:.8584,sv_pk:.7857,sv_rebound:.8235,sv_non_rebound:.8592,sv_rush:null,sv_non_rush:.8571,sv_dist_0_10:.7711,sv_dist_10_20:.7692,sv_dist_20_30:.8261,sv_dist_30_40:.8413,sv_dist_40plus:.9592,sv_angle_0_15:.8485,sv_angle_15_30:.8402,sv_angle_30_45:.8507,sv_angle_45_60:.8687,sv_angle_60_90:.9259,sv_left:.8561,sv_right:.8686,sv_center:.8,sv_high_speed:.8607,sv_low_speed:.8539,sv_period1:.8798,sv_period2:.8093,sv_period3:.8941,sv_leading:.8485,sv_tied:.8587,sv_trailing:.8671,sv_post_faceoff:.8994,sv_mid_play:.8354,sv_long_play:.8495}];
+
+const predImportance=[{feat:"Sv% Angle 0-15°",beta:.4426,dir:"Positive"},{feat:"Sv% Dist 0-10ft",beta:.4307,dir:"Positive"},{feat:"Sv% Angle 45-60°",beta:.3902,dir:"Positive"},{feat:"Sv% On-Wing",beta:.3877,dir:"Positive"},{feat:"Sv% Period 2",beta:.3672,dir:"Positive"},{feat:"Sv% When Tied",beta:.3613,dir:"Positive"},{feat:"Sv% When Leading",beta:.3611,dir:"Positive"},{feat:"Sv% Low Speed",beta:.3515,dir:"Positive"},{feat:"Sv% Prev Other",beta:.3239,dir:"Positive"},{feat:"Sv% Rebound",beta:.322,dir:"Positive"},{feat:"Sv% OT",beta:.3187,dir:"Positive"},{feat:"Sv% Post-Faceoff",beta:.3068,dir:"Positive"},{feat:"Sv% Long Play",beta:.306,dir:"Positive"},{feat:"Sv% Side Center",beta:.2976,dir:"Positive"},{feat:"Sv% Period 1",beta:.2966,dir:"Positive"},{feat:"Sv% vs Right Shot",beta:-.2849,dir:"Negative"},{feat:"Sv% Dist 30-40ft",beta:.2807,dir:"Positive"},{feat:"Sv% Non-Rush",beta:.2668,dir:"Positive"},{feat:"Sv% Early (0-5min)",beta:.2531,dir:"Positive"},{feat:"Sv% Wrist Shot",beta:-.2467,dir:"Negative"},{feat:"Sv% Mid (5-15min)",beta:.2462,dir:"Positive"},{feat:"Sv% Snap Shot",beta:-.237,dir:"Negative"},{feat:"Sv% Non-Rebound",beta:.2355,dir:"Positive"},{feat:"Sv% Shooter TOI 0-30s",beta:.204,dir:"Positive"},{feat:"Sv% Side Left",beta:.2019,dir:"Positive"},{feat:"Sv% Mid Play",beta:.1925,dir:"Positive"},{feat:"Sv% vs Right Wing",beta:-.1751,dir:"Negative"},{feat:"Sv% vs Centre",beta:-.1695,dir:"Negative"},{feat:"Sv% Shooter TOI 30-60s",beta:.1649,dir:"Positive"},{feat:"Sv% Angle 15-30°",beta:.15,dir:"Positive"}];
+
+const driversGlobal=[{feat:"Total MD Sv%",beta:1.735},{feat:"5on5 Sv%",beta:1.691},{feat:"5on5 LD Sv%",beta:1.467},{feat:"Total LD Sv%",beta:1.378},{feat:"5on5 MD Sv%",beta:1.321},{feat:"4on5 HD Sv%",beta:1.022},{feat:"Total HD Sv%",beta:.988},{feat:"4on5 Sv%",beta:.906},{feat:"4on5 MD Sv%",beta:.708},{feat:"5on5 HD Sv%",beta:.509},{feat:"xRebounds 5on5",beta:-.486},{feat:"Total Rebound%",beta:.415},{feat:"xFreeze 5on5",beta:-.372},{feat:"5on4 Rebound%",beta:.365},{feat:"xRebounds 5on4",beta:-.267},{feat:"5on4 Freeze%",beta:-.252},{feat:"xRebounds 4on5",beta:-.237},{feat:"Total Freeze%",beta:-.19},{feat:"5on5 Rebound%",beta:.175},{feat:"4on5 Freeze%",beta:.103}];
+const driversCohort=[{feat:"Total MD Sv%",beta:2.175},{feat:"5on5 Sv%",beta:1.905},{feat:"5on5 MD Sv%",beta:1.544},{feat:"5on5 LD Sv%",beta:1.032},{feat:"Total LD Sv%",beta:.86},{feat:"Total HD Sv%",beta:.454},{feat:"4on5 HD Sv%",beta:.521},{feat:"xRebounds 5on5",beta:.498},{feat:"4on5 Sv%",beta:.34},{feat:"5on5 HD Sv%",beta:.211},{feat:"4on5 MD Sv%",beta:.061},{feat:"xFreeze 5on5",beta:-.243},{feat:"Total Rebound%",beta:.232},{feat:"5on4 Rebound%",beta:-.055},{feat:"xRebounds 5on4",beta:.027},{feat:"xRebounds 4on5",beta:.196},{feat:"5on4 Freeze%",beta:-.113},{feat:"5on5 Rebound%",beta:.072},{feat:"Total Freeze%",beta:0},{feat:"4on5 Rebound%",beta:.05}];
+
+// ═══════════════════════════════════════════════════════════
+// TABS
+// ═══════════════════════════════════════════════════════════
+function showTab(tab,el){
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('tab-'+tab).classList.add('active');
+  el.classList.add('active');
+}
+
+// ═══════════════════════════════════════════════════════════
+// SCOUT TABLE
+// ═══════════════════════════════════════════════════════════
+function tierBadge(t){return `<span class="tier-badge tier-${t}">${t}</span>`;}
+function trendClass(t){return t==='Improving'?'trend-up':t==='Declining'?'trend-down':'trend-flat';}
+function outlookClass(o){if(o==='Regression Watch')return 'outlook-reg';if(o==='Rebound Watch')return 'outlook-reb';if(o==='Cooling')return 'outlook-cool';return 'outlook-stab';}
+function volDot(v){return `<span class="volatility-dot vol-${v}"></span>${v}`;}
+
+function buildScoutTable(data){
+  const tb=document.getElementById('scout-tbody'); tb.innerHTML='';
+  data.forEach((d,i)=>{
+    const w26=Math.max(2,(1-d.r26/60)*60), w25=Math.max(2,(1-d.r25/60)*60), w24=Math.max(2,(1-d.r24/60)*60);
+    const rc=d.rank3<=5?'top':'';
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td class="rank-num ${rc}">${i+1}</td><td class="goalie-name">${d.goalie}</td>
+    <td><span class="rank-num ${rc}">#${d.rank3}</span></td>
+    <td><div class="rank-bar-wrap"><div class="rank-bar" style="width:${w26}px"></div><span style="font-size:11px;color:var(--text-dim)">#${d.r26}</span></div></td>
+    <td><div class="rank-bar-wrap"><div class="rank-bar" style="width:${w25}px;background:var(--green)"></div><span style="font-size:11px;color:var(--text-dim)">#${d.r25}</span></div></td>
+    <td><div class="rank-bar-wrap"><div class="rank-bar" style="width:${w24}px;background:var(--gold)"></div><span style="font-size:11px;color:var(--text-dim)">#${d.r24}</span></div></td>
+    <td>${tierBadge(d.tier)}</td><td>${tierBadge(d.curTier)}</td>
+    <td class="${trendClass(d.trend)}">${d.trend}</td>
+    <td>${volDot(d.vol)}</td>
+    <td class="${outlookClass(d.outlook)}">${d.outlook}</td>
+    <td class="${d.regRisk==='Yes'?'flag-yes':'flag-no'}">${d.regRisk==='Yes'?'⚠ YES':'—'}</td>
+    <td class="${d.rebRisk==='Yes'?'flag-yes':'flag-no'}" style="${d.rebRisk==='Yes'?'color:var(--gold)':''}">${d.rebRisk==='Yes'?'⚠ YES':'—'}</td>`;
+    tb.appendChild(tr);
+  });
+}
+function applyFilters(){
+  const tier=document.getElementById('filter-tier').value, trend=document.getElementById('filter-trend').value, outlook=document.getElementById('filter-outlook').value;
+  let d=scoutData;
+  if(tier!=='All')d=d.filter(x=>x.tier===tier);
+  if(trend!=='All')d=d.filter(x=>x.trend===trend);
+  if(outlook!=='All')d=d.filter(x=>x.outlook===outlook);
+  buildScoutTable(d);
+}
+
+// ═══════════════════════════════════════════════════════════
+// PROJ BARS
+// ═══════════════════════════════════════════════════════════
+function dirClass(d){if(d==='Strong Up')return 'dir-su';if(d==='Up')return 'dir-u';if(d==='Flat')return 'dir-f';if(d==='Down')return 'dir-d';return 'dir-sd';}
+function buildProjBars(data){
+  const c=document.getElementById('proj-bars');
+  const maxA=Math.max(...data.map(d=>Math.max(Math.abs(d.proj),Math.abs(d.hi),Math.abs(d.lo))));
+  c.innerHTML='';
+  data.forEach(d=>{
+    const pct=Math.abs(d.proj)/maxA*44, isPos=d.proj>=0, vc=isPos?'var(--cyan)':'var(--red)';
+    const loN=d.lo/maxA*44, hiN=d.hi/maxA*44, bw=Math.abs(hiN-loN);
+    const el=document.createElement('div'); el.className='bar-row';
+    el.innerHTML=`<div class="bar-goalie">${d.goalie}</div>
+    <div class="bar-track"><div class="bar-zero"></div>
+    <div class="bar-band" style="left:calc(50% + ${Math.min(loN,hiN)}%);width:${bw}%"></div>
+    <div class="bar-fill ${isPos?'pos':'neg'}" style="width:${pct}%"></div></div>
+    <div class="bar-val" style="color:${vc}">${d.proj>=0?'+':''}${d.proj.toFixed(2)}</div>
+    <div class="dir-badge ${dirClass(d.dir)}">${d.dir}</div>`;
+    c.appendChild(el);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+// SCATTER
+// ═══════════════════════════════════════════════════════════
+function buildScatter(){
+  const tc={'Elite':'#00C8F0','Strong':'#52E8A0','Average':'#F0C040','Weak':'#F05060'};
+  const ds=['Elite','Strong','Average','Weak'].map(t=>({label:t,data:projData.filter(d=>d.tier===t).map(d=>({x:d.base,y:d.form,label:d.goalie})),backgroundColor:tc[t]+'CC',borderColor:tc[t],borderWidth:1.5,pointRadius:6,pointHoverRadius:8}));
+  const mn=Math.min(...projData.map(d=>Math.min(d.base,d.form))), mx=Math.max(...projData.map(d=>Math.max(d.base,d.form)));
+  ds.push({label:'_d',data:[{x:mn-.05,y:mn-.05},{x:mx+.05,y:mx+.05}],type:'line',borderColor:'#FFFFFF18',borderDash:[4,4],borderWidth:1,pointRadius:0,fill:false});
+  new Chart(document.getElementById('scatter-chart').getContext('2d'),{type:'scatter',data:{datasets:ds},options:{animation:{duration:600},plugins:{legend:{labels:{color:'#566F8A',font:{family:'Barlow Condensed',size:11,weight:'600'},filter:i=>i.text!=='_d',boxWidth:10,boxHeight:10}},tooltip:{backgroundColor:'#0D1828',borderColor:'#1A3050',borderWidth:1,titleColor:'#00C8F0',bodyColor:'#C5D5E8',callbacks:{title:c=>c[0].raw.label,label:c=>[`Baseline: ${c.raw.x.toFixed(3)}`,`Form: ${c.raw.y.toFixed(3)}`]}}},scales:{x:{title:{display:true,text:'3yr Baseline GSAx/GP',color:'#566F8A',font:{family:'Barlow'}},ticks:{color:'#566F8A',font:{family:'Barlow'}},grid:{color:'#1A3050'}},y:{title:{display:true,text:'Current Form GSAx/GP',color:'#566F8A',font:{family:'Barlow'}},ticks:{color:'#566F8A',font:{family:'Barlow'}},grid:{color:'#1A3050'}}}}});
+}
+
+// ═══════════════════════════════════════════════════════════
+// SHOT DETAIL
+// ═══════════════════════════════════════════════════════════
+function svColor(v){
+  if(v===null||v===undefined) return '#1A2A3A';
+  // Map roughly .75 → red, .92 → neutral, .97+ → bright cyan
+  const lo=.76, hi=.975;
+  const t=Math.max(0,Math.min(1,(v-lo)/(hi-lo)));
+  if(t<.5){
+    const u=t*2;
+    return `rgb(${Math.round(200-u*150)},${Math.round(50+u*120)},${Math.round(50+u*90)})`;
+  } else {
+    const u=(t-.5)*2;
+    return `rgb(${Math.round(50-u*50)},${Math.round(170+u*62)},${Math.round(140+u*110)})`;
+  }
+}
+
+function fmtSv(v){
+  if(v===null||v===undefined) return '<span class="cell-val na">N/A</span>';
+  return `<span class="cell-val">${v.toFixed(3)}</span>`;
+}
+
+function hmCell(label,val,cmp){
+  const bg=svColor(val);
+  let cmpStr='';
+  if(cmp!==null && val!==null && cmp!==undefined){
+    const d=val-cmp;
+    const col=d>0?'var(--green)':'var(--red)';
+    cmpStr=`<span style="font-size:9px;color:${col};display:block;margin-top:2px">${d>0?'+':''}${d.toFixed(3)}</span>`;
+  }
+  return `<div class="heatmap-cell" style="background:${bg}" title="${label}: ${val!==null&&val!==undefined?val.toFixed(4):'N/A'}">
+    <span class="cell-label">${label}</span>${fmtSv(val)}${cmpStr}</div>`;
+}
+
+function buildHeatmaps(g,cmp){
+  const dist=[['0-10ft','sv_dist_0_10'],['10-20ft','sv_dist_10_20'],['20-30ft','sv_dist_20_30'],['30-40ft','sv_dist_30_40'],['40ft+','sv_dist_40plus']];
+  const angle=[['0-15°','sv_angle_0_15'],['15-30°','sv_angle_15_30'],['30-45°','sv_angle_30_45'],['45-60°','sv_angle_45_60'],['60-90°','sv_angle_60_90']];
+  const side=[['Left','sv_left'],['Right','sv_right'],['Center','sv_center']];
+  const gamestate=[['Leading','sv_leading'],['Tied','sv_tied'],['Trailing','sv_trailing']];
+  const period=[['P1','sv_period1'],['P2','sv_period2'],['P3','sv_period3'],['OT','sv_rush']]; // reusing rush col as placeholder
+  const situation=[['Post-FO','sv_post_faceoff'],['Mid Play','sv_mid_play'],['Long Play','sv_long_play'],['Rush','sv_rush']];
+
+  function render(id,items){
+    const el=document.getElementById(id); if(!el)return;
+    el.innerHTML=items.map(([lbl,key])=>hmCell(lbl,g[key],cmp?cmp[key]:null)).join('');
+  }
+  render('hm-dist',dist);
+  render('hm-angle',angle);
+  render('hm-side',side);
+  render('hm-gamestate',gamestate);
+
+  // Period (special - reuse proper keys)
+  const periodKeys=[['P1','sv_period1'],['P2','sv_period2'],['P3','sv_period3'],['High Spd','sv_high_speed']];
+  document.getElementById('hm-period').innerHTML=periodKeys.map(([lbl,key])=>hmCell(lbl,g[key],cmp?cmp[key]:null)).join('');
+
+  const sitKeys=[['Post-FO','sv_post_faceoff'],['Mid Play','sv_mid_play'],['Long Play','sv_long_play'],['Low Spd','sv_low_speed']];
+  document.getElementById('hm-situation').innerHTML=sitKeys.map(([lbl,key])=>hmCell(lbl,g[key],cmp?cmp[key]:null)).join('');
+}
+
+function buildLeaderboard(highlightName){
+  const tb=document.getElementById('lb-tbody'); tb.innerHTML='';
+  const sorted=[...shotData].sort((a,b)=>b.sv_overall-a.sv_overall);
+  const svMin=.85, svMax=.925;
+  sorted.forEach((d,i)=>{
+    const hl=d.name===highlightName;
+    const tr=document.createElement('tr');
+    if(hl) tr.className='highlighted';
+    const pct=Math.max(0,Math.min(100,(d.sv_overall-svMin)/(svMax-svMin)*100));
+    const esColor=d.sv_es>=.92?'var(--green)':d.sv_es>=.91?'var(--cyan)':d.sv_es>=.9?'var(--gold)':'var(--red)';
+    const rbColor=d.sv_rebound>=.90?'var(--green)':d.sv_rebound>=.85?'var(--cyan)':d.sv_rebound>=.80?'var(--gold)':'var(--red)';
+    tr.innerHTML=`<td class="rank-num ${i<3?'top':''}">${i+1}</td>
+    <td style="font-weight:600;color:${hl?'var(--cyan)':'var(--text-bright)'}">${d.name}${hl?'<span style="color:var(--cyan);font-size:9px;margin-left:4px">◀</span>':''}</td>
+    <td style="color:var(--text-dim)">${d.gp}</td>
+    <td><div class="sv-bar-cell"><div class="sv-bar-bg"><div class="sv-bar-fg" style="width:${pct}%"></div></div><span class="sv-val">${d.sv_overall.toFixed(4)}</span></div></td>
+    <td style="color:${esColor};font-family:'Barlow Condensed';font-size:13px;font-weight:600">${d.sv_es.toFixed(4)}</td>
+    <td style="color:var(--text-dim);font-family:'Barlow Condensed';font-size:13px">${d.sv_pk!==null&&d.sv_pk!==undefined?d.sv_pk.toFixed(4):'—'}</td>
+    <td style="color:${rbColor};font-family:'Barlow Condensed';font-size:13px;font-weight:600">${d.sv_rebound!==null&&d.sv_rebound!==undefined?d.sv_rebound.toFixed(4):'—'}</td>`;
+    tb.appendChild(tr);
+  });
+}
+
+function buildPredImportance(){
+  const c=document.getElementById('pred-importance'); c.innerHTML='';
+  const maxB=Math.max(...predImportance.map(d=>Math.abs(d.beta)));
+  predImportance.forEach((d,i)=>{
+    const pct=Math.abs(d.beta)/maxB*100;
+    const isPos=d.dir==='Positive';
+    const vc=isPos?'var(--cyan)':'var(--red)';
+    const row=document.createElement('div'); row.className='pred-row';
+    row.innerHTML=`<div class="pred-rank">${i+1}</div>
+    <div class="pred-name">${d.feat}</div>
+    <div class="pred-track"><div class="${isPos?'pred-fill-pos':'pred-fill-neg'}" style="width:${pct}%"></div></div>
+    <div class="pred-val" style="color:${vc}">${isPos?'+':''}${d.beta.toFixed(3)}</div>
+    <div class="pred-dir">${isPos?'↑':'↓'}</div>`;
+    c.appendChild(row);
+  });
+}
+
+function renderShotDetail(){
+  const name=document.getElementById('shot-goalie-select').value;
+  const cmpName=document.getElementById('shot-compare-select').value;
+  const g=shotData.find(d=>d.name===name);
+  const cmp=cmpName?shotData.find(d=>d.name===cmpName):null;
+  if(!g) return;
+  buildHeatmaps(g,cmp);
+  buildLeaderboard(name);
+}
+
+function initShotDropdowns(){
+  const sel=document.getElementById('shot-goalie-select');
+  const cmpSel=document.getElementById('shot-compare-select');
+  shotData.forEach(d=>{
+    const o=document.createElement('option'); o.value=d.name; o.textContent=`${d.name} (${d.gp} GP)`;
+    sel.appendChild(o);
+    const o2=document.createElement('option'); o2.value=d.name; o2.textContent=`${d.name}`;
+    cmpSel.appendChild(o2);
+  });
+  sel.value='Ilya Sorokin';
+  renderShotDetail();
+}
+
+// ═══════════════════════════════════════════════════════════
+// MODEL DRIVERS
+// ═══════════════════════════════════════════════════════════
+function buildDrivers(data,id,maxV){
+  const c=document.getElementById(id); c.innerHTML='';
+  [...data].sort((a,b)=>b.beta-a.beta).forEach(d=>{
+    const pct=Math.abs(d.beta)/maxV*44, isPos=d.beta>=0, vc=isPos?'var(--cyan)':'var(--red)';
+    const row=document.createElement('div'); row.className='driver-row';
+    row.innerHTML=`<div class="driver-name">${d.feat}</div>
+    <div class="driver-track"><div class="driver-zero"></div><div class="driver-fill ${isPos?'pos':'neg'}" style="width:${pct}%"></div></div>
+    <div class="driver-val" style="color:${vc}">${d.beta>=0?'+':''}${d.beta.toFixed(3)}</div>`;
+    c.appendChild(row);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════
+buildScoutTable(scoutData);
+buildProjBars(projData);
+buildScatter();
+initShotDropdowns();
+buildPredImportance();
+buildDrivers(driversGlobal,'drivers-global',1.8);
+buildDrivers(driversCohort,'drivers-cohort',2.3);
+</script>
+</body>
+</html>
